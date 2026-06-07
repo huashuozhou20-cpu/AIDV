@@ -1,0 +1,164 @@
+    /* keywords are case insensitive */
+%option caseless
+    /* we don't need yywrap() function */
+%option noyywrap
+    /* we don't need yyunput() function */
+%option nounput
+    /* we don't need input() function */
+%option noinput
+    /* enable location */
+%option bison-bridge
+%option bison-locations
+
+%{
+#include "ast.h"
+#include "yacc.tab.h"
+#include <iostream>
+
+// automatically update location
+#define YY_USER_ACTION \
+    yylloc->first_line = yylloc->last_line; \
+    yylloc->first_column = yylloc->last_column; \
+    for (int i = 0; yytext[i] != '\0'; i++) { \
+        if(yytext[i] == '\n') { \
+            yylloc->last_line++; \
+            yylloc->last_column = 1; \
+        } else { \
+            yylloc->last_column++; \
+        } \
+    }
+
+%}
+
+alpha [a-zA-Z]
+digit [0-9]
+white_space [ \t]+
+new_line "\r"|"\n"|"\r\n"
+sign "+"|"-"
+identifier [a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*
+value_int {sign}?{digit}+
+value_float {sign}?{digit}+\.({digit}+)?
+value_string ('[^']*'|(\"[^\"]*\"))
+single_op ";"|"("|")"|","|"*"|"="|">"|"<"|"."|"+"|"-"|"/"|"%"
+
+%x STATE_COMMENT
+
+%%
+    /* block comment */
+"/*" { BEGIN(STATE_COMMENT); }
+<STATE_COMMENT>"*/" { BEGIN(INITIAL); }
+<STATE_COMMENT>[^*] { /* ignore the text of the comment */ }
+<STATE_COMMENT>\* { /* ignore *'s that aren't part of */ }
+    /* single line comment */
+"--".* { /* ignore single line comment */ }
+    /* white space and new line */
+{white_space} { /* ignore white space */ }
+{new_line} { /* ignore new line */ }
+    /* keywords */
+"SHOW" { return SHOW; }
+"BEGIN" { return TXN_BEGIN; }
+"COMMIT" { return TXN_COMMIT; }
+"ABORT" { return TXN_ABORT; }
+"ROLLBACK" { return TXN_ROLLBACK; }
+"TABLES" { return TABLES; }
+"CREATE" { return CREATE; }
+"TABLE" { return TABLE; }
+"DROP" { return DROP; }
+"DESC" { return DESC; }
+"DESCRIBE" { return DESC; }
+"INSERT" { return INSERT; }
+"INTO" { return INTO; }
+"VALUES" { return VALUES; }
+"DEFAULT" { return DEFAULT; }
+"DELETE" { return DELETE; }
+"FROM" { return FROM; }
+"WHERE" { return WHERE; }
+"UPDATE" { return UPDATE; }
+"FOR" { return FOR; }
+"SET" { return SET; }
+"SELECT" { return SELECT; }
+"INT" { return INT; }
+"INTEGER" { return INT; }
+"CHAR" { return CHAR; }
+"VARCHAR" { return CHAR; }
+"FLOAT" { return FLOAT; }
+"DECIMAL" { return FLOAT; }
+"NUMERIC" { return FLOAT; }
+"INDEX" { return INDEX; }
+"AND" { return AND; }
+"AVG" { return AVG; }
+"BETWEEN" { return BETWEEN; }
+"COUNT" { return COUNT; }
+"DISTINCT" { return DISTINCT; }
+"FULL" { return FULL; }
+"GROUP" { return GROUP; }
+"HAVING" { return HAVING; }
+"IN" { return IN; }
+"INNER" { return INNER; }
+"IS" { return IS; }
+"JOIN" {return JOIN;}
+"LEFT" { return LEFT; }
+"LIKE" { return LIKE; }
+"LIMIT" { return LIMIT; }
+"MAX" { return MAX; }
+"MIN" { return MIN; }
+"NOT" { return NOT; }
+"NULL" { return VALUE_NULL; }
+"OFFSET" { return OFFSET; }
+"ON" { return ON; }
+"OR" { return OR; }
+"RIGHT" { return RIGHT; }
+"SUM" { return SUM; }
+"EXIT" { return EXIT; }
+"HELP" { return HELP; }
+"ORDER" { return ORDER; }
+"BY" {  return BY;  }
+"ASC" { return ASC; }
+"AS" { return AS; }
+"PRIMARY" { return PRIMARY; }
+"KEY" { return KEY; }
+"AUTO_INCREMENT" { return AUTO_INCREMENT; }
+"VIEW" { return VIEW; }
+"CONCAT" { return CONCAT; }
+"DATE" { return DATE; }
+"TEXT" { return TEXT; }
+"UNIQUE" { return UNIQUE; }
+"ENABLE_NESTLOOP" { return ENABLE_NESTLOOP; }
+"ENABLE_SORTMERGE" { return ENABLE_SORTMERGE; }
+"TRUE" { 
+    yylval->sv_bool = true;
+    return VALUE_BOOL; 
+}
+"FALSE" {
+    yylval->sv_bool = false;
+    return VALUE_BOOL;
+}
+    /* operators */
+">=" { return GEQ; }
+"<=" { return LEQ; }
+"<>" { return NEQ; }
+"!=" { return NEQ; }
+{single_op} { return yytext[0]; }
+    /* id */
+{identifier} {
+    yylval->sv_str = yytext;
+    return IDENTIFIER;
+}
+    /* literals */
+{value_int} {
+    yylval->sv_int = atoi(yytext);
+    return VALUE_INT;
+}
+{value_float} {
+    yylval->sv_float = atof(yytext);
+    return VALUE_FLOAT;
+}
+{value_string} {
+    yylval->sv_str = std::string(yytext + 1, strlen(yytext) - 2);
+    return VALUE_STRING;
+}
+    /* EOF */
+<<EOF>> { return T_EOF; }
+    /* unexpected char */
+. { std::cerr << "Lexer Error: unexpected character " << yytext[0] << std::endl; }
+%%

@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+@theme {
+  --color-inverse-on-surface: #313030;
+  --color-tertiary-container: #da8b00;
+  --color-secondary-fixed: #6ffbbe;
+  --color-on-primary-fixed: #001d33;
+  --color-on-primary-container: #00375a;
+  --color-on-primary-fixed-variant: #004a77;
+  --color-surface-tint: #98cbff;
+  --color-background: #131313;
+  --color-on-tertiary-fixed: #2a1700;
+  --color-surface-container-high: #2a2a2a;
+  --color-error-container: #93000a;
+  --color-surface-container-lowest: #0e0e0e;
+  --color-on-secondary: #003824;
+  --color-on-tertiary: #472a00;
+  --color-on-secondary-container: #00311f;
+  --color-surface-variant: #353534;
+  --color-surface: #131313;
+  --color-primary-container: #00a3ff;
+  --color-on-secondary-fixed-variant: #005236;
+  --color-error: #ffb4ab;
+  --color-on-error-container: #ffdad6;
+  --color-surface-dim: #131313;
+  --color-secondary: #4edea3;
+  --color-on-surface: #e5e2e1;
+  --color-on-secondary-fixed: #002113;
+  --color-on-tertiary-container: #4c2d00;
+  --color-on-background: #e5e2e1;
+  --color-inverse-primary: #00629d;
+  --color-on-surface-variant: #bec7d4;
+  --color-secondary-fixed-dim: #4edea3;
+  --color-tertiary: #ffb95f;
+  --color-on-error: #690005;
+  --color-outline-variant: #3f4852;
+  --color-primary-fixed-dim: #98cbff;
+  --color-surface-container-highest: #353534;
+  --color-primary-fixed: #cfe5ff;
+  --color-outline: #88919d;
+  --color-primary: #98cbff;
+  --color-tertiary-fixed: #ffddb8;
+  --color-tertiary-fixed-dim: #ffb95f;
+  --color-surface-bright: #3a3939;
+  --color-surface-container-low: #1c1b1b;
+  --color-on-tertiary-fixed-variant: #653e00;
+  --color-inverse-surface: #e5e2e1;
+  --color-on-primary: #003354;
+  --color-secondary-container: #00a572;
+  --color-surface-container: #201f1f;
+
+  --spacing-panel-padding: 12px;
+  --spacing-stack-gap: 8px;
+  --spacing-margin-mobile: 16px;
+  --spacing-margin-desktop: 24px;
+  --spacing-unit: 4px;
+  --spacing-gutter: 16px;
+
+  --font-headline-md: "Inter", ui-sans-serif, system-ui;
+  --font-code-md: "JetBrains Mono";
+  --font-body-md: "Inter", ui-sans-serif, system-ui;
+  --font-label-caps: "JetBrains Mono";
+  --font-code-sm: "JetBrains Mono";
+  --font-body-sm: "Inter", ui-sans-serif, system-ui;
+  --font-headline-lg: "Inter", ui-sans-serif, system-ui;
+  
+  --text-headline-md: 18px;
+  --text-headline-md--line-height: 24px;
+  --text-headline-md--letter-spacing: -0.01em;
+  --text-headline-md--font-weight: 600;
+
+  --text-code-md: 13px;
+  --text-code-md--line-height: 20px;
+  --text-code-md--font-weight: 400;
+
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-body-md--font-weight: 400;
+
+  --text-label-caps: 10px;
+  --text-label-caps--line-height: 12px;
+  --text-label-caps--letter-spacing: 0.05em;
+  --text-label-caps--font-weight: 700;
+
+  --text-code-sm: 11px;
+  --text-code-sm--line-height: 14px;
+  --text-code-sm--letter-spacing: 0.02em;
+  --text-code-sm--font-weight: 500;
+
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 16px;
+  --text-body-sm--font-weight: 400;
+
+  --text-headline-lg: 24px;
+  --text-headline-lg--line-height: 32px;
+  --text-headline-lg--letter-spacing: -0.02em;
+  --text-headline-lg--font-weight: 600;
+}
+
+@layer base {
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .icon-fill {
+    font-variation-settings: 'FILL' 1;
+  }
+
+  /* Custom Scrollbar for high-density feel */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-outline-variant); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-outline); }
+}
+
+@layer utilities {
+  .glass-panel {
+    background: rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  .liquid-glass {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+  }
+
+  .bg-industrial {
+    background-image: 
+      radial-gradient(rgba(152, 203, 255, 0.03) 1px, transparent 1px),
+      radial-gradient(rgba(152, 203, 255, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+  }
+  
+  .ai-glow {
+    box-shadow: 0 0 15px rgba(152, 203, 255, 0.15), inset 0 0 20px rgba(152, 203, 255, 0.05);
+  }
+}

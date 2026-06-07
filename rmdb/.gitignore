@@ -1,0 +1,12 @@
+# Test artifacts
+[0-9]*.txt
+BufferPoolManagerTest_db/
+
+# Build output
+build/
+
+# IDE
+.vscode/
+*.swp
+*.swo
+*~
