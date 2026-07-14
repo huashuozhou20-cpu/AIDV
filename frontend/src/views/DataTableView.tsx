@@ -124,11 +124,21 @@ export default function DataTableView({ scenarioId, scenarioName, onBack, onEdit
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!activeTable) { toast_('未选中数据表，请先点击表名标签'); if (fileRef.current) fileRef.current.value = ''; return; }
     try {
       const res = await importCSV(activeTable, file);
-      toast_(t('data.importDone').replace('N', String(res.imported)).replace('M', String(res.errors.length)));
+      let msg = t('data.importDone').replace('N', String(res.imported)).replace('M', String(res.errors.length));
+      if (res.errors.length > 0) {
+        msg += ' — ' + res.errors.slice(0, 3).map((e: any) => `[行${e.row}] ${e.error}`).join('; ');
+        if (res.errors.length > 3) msg += ` ...等${res.errors.length}条`;
+      }
+      toast_(msg);
       loadRows();
-    } catch { toast_(t('data.importFailed')); }
+    } catch (err: any) {
+      console.error('Import failed:', err);
+      const msg = err?.message || String(err);
+      toast_(t('data.importFailed') + (msg ? ': ' + msg : ''));
+    }
     if (fileRef.current) fileRef.current.value = '';
   };
 
