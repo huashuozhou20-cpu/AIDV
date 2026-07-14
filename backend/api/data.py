@@ -180,7 +180,7 @@ def api_insert_row(table_name: str, req: InsertRowRequest, authorization: str = 
             else:
                 vals.append(clean_v)
         else:
-            safe_v = str(v).replace("'", "''")
+            safe_v = str(v).replace("'", "")
             vals.append(f"'{safe_v}'")
 
     sql = f"INSERT INTO {table_name} ({', '.join(cols)}) VALUES ({', '.join(vals)})"
@@ -205,7 +205,7 @@ def api_update_row(table_name: str, pk_value: str, req: UpdateRowRequest, author
     # RMDB UPDATE has a known issue — we use DELETE + INSERT instead
     fetch_sql = f"SELECT * FROM {table_name} WHERE {pk_col} IN ("
     pk_type = col_types.get(pk_col, "STRING").upper()
-    pk_safe = pk_value.replace("'", "''")
+    pk_safe = pk_value.replace("'", "")
     if "INT" in pk_type or "FLOAT" in pk_type:
         fetch_sql += pk_value + ")"
     else:
@@ -247,7 +247,7 @@ def api_update_row(table_name: str, pk_value: str, req: UpdateRowRequest, author
             clean_v = val.replace("'", "").replace('"', "")
             insert_vals.append(clean_v if clean_v else "NULL")
         else:
-            safe_v = val.replace("'", "''")
+            safe_v = val.replace("'", "")
             insert_vals.append(f"'{safe_v}'")
 
     insert_sql = f"INSERT INTO {table_name} ({', '.join(col_names)}) VALUES ({', '.join(insert_vals)})"
@@ -265,7 +265,7 @@ def api_delete_row(table_name: str, pk_value: str, authorization: str = Header("
         return {"status": "error", "message": "表不存在或无权访问"}
 
     pk_col = _get_pk_column(table_name)
-    pk_safe = pk_value.replace("'", "''")
+    pk_safe = pk_value.replace("'", "")
     # Use IN instead of = due to RMDB equality bug on INT columns
     try:
         int(pk_value)
@@ -316,7 +316,7 @@ async def api_import_csv(table_name: str, file: UploadFile = File(...), authoriz
                 clean = val.strip().replace("'", "").replace('"', "")
                 vals.append(clean if clean else "NULL")
             else:
-                safe = val.strip().replace("'", "''")
+                safe = val.strip().replace("'", "")  # RMDB does not support '' escaping
                 vals.append(f"'{safe}'")
 
         try:
