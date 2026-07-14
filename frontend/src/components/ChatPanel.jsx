@@ -25,10 +25,27 @@ export default function ChatPanel({ isOpen, onToggle }) {
     setLoading(true);
 
     const userMsg = { role: 'user', text, time: new Date().toLocaleTimeString() };
-    setMessages(prev => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+
+    // Build history for the backend (convert frontend message format)
+    const buildHistory = () => {
+      const history = [];
+      for (const msg of messages) {
+        if (msg.role === 'user') {
+          history.push({ role: 'user', content: msg.text });
+        } else if (msg.role === 'ai') {
+          let content = '';
+          if (msg.explanation) content += msg.explanation + '\n';
+          if (msg.sql) content += '---SQL---\n' + msg.sql;
+          if (content) history.push({ role: 'assistant', content: content.trim() });
+        }
+      }
+      return history;
+    };
 
     try {
-      const result = await chatQuery(text);
+      const result = await chatQuery(text, buildHistory());
       const aiMsg = {
         role: 'ai',
         time: new Date().toLocaleTimeString(),

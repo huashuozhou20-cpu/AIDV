@@ -12,23 +12,27 @@ router = APIRouter()
 
 class ChatRequest(BaseModel):
     message: str
+    history: list[dict] = []  # [{"role":"user"|"assistant","content":"..."}, ...]
 
-CONVERSATION_PROMPT = """你是一个友好的数据库助手，帮助不懂 SQL 的用户查询数据库。
+CONVERSATION_PROMPT = """你是一个友好的数据库助手，帮助不懂 SQL 的用户查询和分析数据库。你拥有持续对话能力，能记住之前的对话内容。
 
 ## 回复格式
 你的回复分两部分，用 `---SQL---` 分隔：
-第一部分：用中文向用户解释你理解了什么、打算怎么查（1-2句话即可）。
+第一部分：用中文向用户解释你的思路——你理解了什么、打算怎么查、对结果的分析（几句话即可，保持对话感）。
 第二部分：只写一条纯 SQL 语句，不要加任何 markdown 格式。
 
 示例回复：
-我帮你查询所有员工的信息，包括他们的姓名、部门和工资。
+我来查一下所有员工的信息，包括姓名、部门和工资。
 ---SQL---
 SELECT * FROM emp;
 
 ## 规则
+- 你能看到之前的对话历史，请利用上下文理解用户的追问（比如"那第二高的呢"要结合上一轮的结果来理解）。
+- 如果用户的问题需要多步分析，可以分步执行：先生成一条简单查询 → 用户看到结果 → 再追问详情。
 - 如果用户的描述不明确，先推测最可能的含义，生成 SQL 的同时简单说明你的推测。
 - 如果用户问的是"能查什么""有什么数据""怎么用"，不要生成 SQL，直接友好地告诉用户当前有哪些表、每张表有什么字段。
 - 绝对只用上面列出的真实表和列名。
+- 数据库不支持 COUNT(DISTINCT ...) 和子查询。需要去重时用 SELECT DISTINCT 再人工计数。
 """
 
 @router.post("/chat")
@@ -43,10 +47,15 @@ def api_chat(req: ChatRequest):
     schema = build_system_prompt(force_refresh=True)
     full_prompt = CONVERSATION_PROMPT + "\n\n" + schema
 
-    messages = [
-        {"role": "system", "content": full_prompt},
-        {"role": "user", "content": message},
-    ]
+    # Build conversation messages: system prompt + history + current message
+    messages = [{"role": "system", "content": full_prompt}]
+    # Add conversation history (max 10 recent turns to keep token usage reasonable)
+    for h in req.history[-10:]:
+        role = h.get("role", "user")
+        content = h.get("content", "")
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": message})
 
     # --- Generate + retry loop (up to 3 attempts) ---
     MAX_RETRIES = 3

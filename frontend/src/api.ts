@@ -91,10 +91,10 @@ export function executeQuery(sql: string): Promise<QueryResult> {
   });
 }
 
-export function chatQuery(message: string): Promise<QueryResult> {
+export function chatQuery(message: string, history: { role: string; content: string }[] = []): Promise<QueryResult> {
   return request<QueryResult>('/chat', {
     method: 'POST',
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, history }),
   });
 }
 
