@@ -108,6 +108,7 @@
   "data.title": "Data Management",
   "data.import": "Import CSV",
   "data.export": "Export CSV",
+  "data.exportFailed": "Export failed",
   "data.addRow": "Add Row",
   "data.search": "Search...",
   "data.loading": "Loading...",

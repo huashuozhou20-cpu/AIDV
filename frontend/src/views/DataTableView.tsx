@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getScenario, fetchRows, insertRow, updateRow, deleteRow, importCSV, getExportURL, activateScenario } from '../api';
+import { getScenario, fetchRows, insertRow, updateRow, deleteRow, importCSV, downloadExport, activateScenario } from '../api';
 import type { ScenarioTable, ColumnInfo } from '../api';
 import RowEditDrawer from '../components/RowEditDrawer';
 import { useT } from '../i18n';
@@ -152,9 +152,11 @@ export default function DataTableView({ scenarioId, scenarioName, onBack, onEdit
           <button onClick={() => fileRef.current?.click()}
             className="px-3 py-1.5 rounded-lg font-code-sm text-[10px] text-on-surface-variant border border-outline-variant/30 hover:border-white/30 transition-colors flex items-center gap-1">
             <span className="material-symbols-outlined text-[14px]">upload_file</span>{t('data.import')}</button>
-          <a href={getExportURL(activeTable)} download
+          <button onClick={async () => {
+            try { await downloadExport(activeTable); } catch { toast_(t('data.exportFailed')); }
+          }}
             className="px-3 py-1.5 rounded-lg font-code-sm text-[10px] text-on-surface-variant border border-outline-variant/30 hover:border-white/30 transition-colors flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px]">download</span>{t('data.export')}</a>
+            <span className="material-symbols-outlined text-[14px]">download</span>{t('data.export')}</button>
         </div>
       </div>
 

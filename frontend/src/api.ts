@@ -70,10 +70,11 @@ export interface SchemaTree {
 const BASE = '/api';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const isFormData = options?.body instanceof FormData;
   const res = await fetch(`${BASE}${url}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options?.headers as Record<string, string>),
     },
   });
@@ -375,6 +376,22 @@ export async function importCSV(tableName: string, file: File): Promise<{ status
 
 export function getExportURL(tableName: string): string {
   return `/api/data/${tableName}/export`;
+}
+
+export async function downloadExport(tableName: string): Promise<void> {
+  const res = await fetch(`${BASE}/data/${tableName}/export`, {
+    headers: authHeader(),
+  });
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${tableName}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ── Auth Helper ─────────────────────────────────────────────────────────────

@@ -346,6 +346,7 @@ def api_export_csv(table_name: str, authorization: str = Header("")):
         return {"status": "error", "message": result.get("message", "查询失败")}
 
     output = io.StringIO()
+    output.write('﻿')  # UTF-8 BOM for Excel compatibility
     writer = csv.writer(output)
     writer.writerow(result["columns"])
     for row in result["data"]:
@@ -353,8 +354,8 @@ def api_export_csv(table_name: str, authorization: str = Header("")):
 
     output.seek(0)
     return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
+        iter([output.getvalue().encode('utf-8')]),
+        media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename={table_name}.csv"},
     )
 

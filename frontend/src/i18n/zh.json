@@ -108,6 +108,7 @@
   "data.title": "数据管理",
   "data.import": "导入 CSV",
   "data.export": "导出 CSV",
+  "data.exportFailed": "导出失败",
   "data.addRow": "添加行",
   "data.search": "搜索...",
   "data.loading": "加载中...",
