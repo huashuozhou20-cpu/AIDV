@@ -7,6 +7,7 @@
   "nav.practice": "SQL 练习",
   "nav.ai": "AI 助手",
   "nav.scenarios": "场景管理",
+  "nav.admin": "用户管理",
   "nav.logout": "退出登录",
 
   "login.title": "AIDV",
@@ -198,5 +199,23 @@
   "designer.saveTable": "保存表",
   "designer.saveChanges": "保存修改",
   "designer.tableName": "表名",
-  "designer.displayName": "显示名"
+  "designer.displayName": "显示名",
+
+  "admin.title": "用户管理",
+  "admin.id": "ID",
+  "admin.username": "用户名",
+  "admin.email": "邮箱",
+  "admin.role": "角色",
+  "admin.admin": "管理员",
+  "admin.user": "普通用户",
+  "admin.createdAt": "创建时间",
+  "admin.actions": "操作",
+  "admin.promote": "提升为管理员",
+  "admin.demote": "降为普通用户",
+  "admin.confirmDelete": "确定删除此用户？所有相关数据将被永久删除。",
+  "admin.confirmDemote": "确定移除此用户的管理员权限？",
+  "admin.cannotSelf": "不能修改自己的账户。",
+  "admin.userCount": "个用户",
+  "admin.noUsers": "未找到用户。",
+  "admin.deleteFailed": "删除失败"
 }

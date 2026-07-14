@@ -14,6 +14,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
     "lucide-react": "^0.546.0",
+    "material-symbols": "^0.45.1",
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",

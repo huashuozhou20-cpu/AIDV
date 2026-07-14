@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Self-hosted Material Symbols — avoids Google CDN (blocked in some regions) */
+@import "material-symbols/outlined.css";
 
 @theme {
   --color-inverse-on-surface: #313030;

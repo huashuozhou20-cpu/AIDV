@@ -14,8 +14,18 @@ from api.scenarios import router as scenarios_router
 from api.data import router as data_router
 from api.import_api import router as import_router
 from api.workspace import router as workspace_router
+from api.admin import router as admin_router
 
 app = FastAPI(title="DB Gateway")
+
+# CORS — required when frontend dev server runs on a different port
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize exercise tables on startup
 from core.schema import init_exercise_tables
@@ -36,6 +46,7 @@ app.include_router(scenarios_router, prefix="/api")
 app.include_router(data_router, prefix="/api")
 app.include_router(import_router, prefix="/api")
 app.include_router(workspace_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
 
 # Serve frontend static files
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")

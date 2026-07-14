@@ -230,7 +230,7 @@ def _build_create_table_sql(table_name: str, columns: list[dict]) -> str:
         elif col_type == "DATE":
             pass  # RMDB accepts DATE (maps to STRING)
         # Validate — unrecognized types default to CHAR(100)
-        if not re.match(r'^(INT|FLOAT|CHAR\(\d+\)|VARCHAR\(\d+\)|TEXT|DATE)$', col_type, re.IGNORECASE):
+        if not re.match(r'^(INT|FLOAT|CHAR\(\d+\)|DATE)$', col_type, re.IGNORECASE):
             col_type = "CHAR(100)"
 
         parts = [name, col_type]
@@ -262,7 +262,7 @@ def _build_create_table_sql(table_name: str, columns: list[dict]) -> str:
         elif "FLOAT" in ct:
             est_size += 4
         elif ct == "DATE":
-            est_size += 80  # DATE maps to CHAR(20) internally
+            est_size += 256  # DATE maps to STRING(256) internally (RMDB sv_type_len)
         else:
             # CHAR(n) or STRING — extract n
             m = re.search(r'(\d+)', ct)
@@ -630,6 +630,7 @@ def api_ai_confirm(scenario_id: int, req: AIConfirmRequest, authorization: str =
 
     created = []
     errors = []
+    prefix = scenario["slug"] + "_"
     for sql in req.sqls:
         sql = sql.strip()
         if not sql or not sql.upper().startswith("CREATE TABLE"):
@@ -641,11 +642,22 @@ def api_ai_confirm(scenario_id: int, req: AIConfirmRequest, authorization: str =
         if not match:
             errors.append({"sql": sql[:80], "error": "无法解析表名"})
             continue
-        table_name = match.group(1)
+        orig_table_name = match.group(1)
 
-        # Extract display name (remove prefix)
-        prefix = scenario["slug"] + "_"
-        display_name = table_name[len(prefix):] if table_name.startswith(prefix) else table_name
+        # Normalize: prepend scenario slug prefix if missing (manual tables won't have it)
+        if not orig_table_name.startswith(prefix):
+            normalized_name = prefix + orig_table_name
+            # Replace only the first occurrence (the table name in CREATE TABLE)
+            sql = re.sub(
+                r'(CREATE\s+TABLE\s+)(' + re.escape(orig_table_name) + r')(\s*[\s(])',
+                r'\1' + normalized_name + r'\3',
+                sql, count=1, flags=re.IGNORECASE
+            )
+            table_name = normalized_name
+            display_name = orig_table_name
+        else:
+            table_name = orig_table_name
+            display_name = orig_table_name[len(prefix):]
 
         # Execute the CREATE TABLE
         result = execute_sql(sql)
@@ -656,7 +668,7 @@ def api_ai_confirm(scenario_id: int, req: AIConfirmRequest, authorization: str =
                 # Extract byte count if present
                 m = re.search(r'(\d+)', err_msg)
                 size = m.group(1) if m else "?"
-                err_msg = f"记录大小超限（{size} 字节）。RMDB 单条记录上限 500 字节。请减少 CHAR 字段数量或缩短长度（如 CHAR(20) 代替 CHAR(100)）"
+                err_msg = f"记录大小超限（{size} 字节）。RMDB 单条记录上限 2024 字节（总 2048 - 24 隐藏字段）。请减少 CHAR 字段数量或缩短长度（如 CHAR(20) 代替 CHAR(100)）"
             elif "syntax error" in err_msg.lower():
                 err_msg = f"SQL 语法错误。请检查：1) 类型只支持 INT/FLOAT/CHAR(n)  2) 约束顺序为 PRIMARY KEY AUTO_INCREMENT  3) 括号是否匹配"
             # "Table already exists" is OK — it means this table was created before

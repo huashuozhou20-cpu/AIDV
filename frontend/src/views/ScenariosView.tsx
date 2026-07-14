@@ -12,11 +12,23 @@ export default function ScenariosView({ onEnterScenario }: { onEnterScenario: (i
   const [slug, setSlug] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Check if API response indicates auth failure — clear token to force re-login
+  const checkAuth = (res: { status: string; message?: string }) => {
+    if (res.message === '未登录') {
+      localStorage.removeItem('aidv_token');
+      localStorage.removeItem('aidv_user');
+      window.location.reload();
+      return false;
+    }
+    return true;
+  };
+
   const load = async () => {
     try {
       const res = await fetchScenarios();
       if (res.status === 'success') setScenarios(res.scenarios);
-    } catch {}
+      else checkAuth(res);
+    } catch { console.error('加载场景列表失败'); }
   };
 
   useEffect(() => { load(); }, []);
@@ -30,8 +42,12 @@ export default function ScenariosView({ onEnterScenario }: { onEnterScenario: (i
         setShowCreate(false);
         setName(''); setDescription(''); setSlug('');
         load();
+      } else if (checkAuth(res)) {
+        alert('创建场景失败：' + (res.message || '未知错误'));
       }
-    } catch {}
+    } catch {
+      alert('创建场景失败：网络错误，请确认后端服务是否在运行');
+    }
     setLoading(false);
   };
 
@@ -41,7 +57,7 @@ export default function ScenariosView({ onEnterScenario }: { onEnterScenario: (i
     try {
       await deleteScenario(id);
       load();
-    } catch {}
+    } catch { alert('删除场景失败，请重试'); }
   };
 
   const iconMap: Record<string, string> = {

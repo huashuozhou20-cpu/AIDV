@@ -10,8 +10,9 @@ import PracticeView from './views/PracticeView';
 import ScenariosView from './views/ScenariosView';
 import ScenarioDesignerView from './views/ScenarioDesignerView';
 import DataTableView from './views/DataTableView';
+import AdminView from './views/AdminView';
 
-type ViewId = 'dashboard' | 'query-analyzer' | 'ai-engine' | 'sql-diff' | 'practice' | 'scenarios' | 'scenario-designer' | 'scenario-data';
+type ViewId = 'dashboard' | 'query-analyzer' | 'ai-engine' | 'sql-diff' | 'practice' | 'scenarios' | 'scenario-designer' | 'scenario-data' | 'admin';
 
 const COLORS = ['#1a1a2e', '#16213e', '#0f3460', '#1a1a1a', '#2d132c', '#1b262c', '#0d1117', '#1c0b2b'];
 const GRADIENTS = [
@@ -27,6 +28,11 @@ export default function App() {
   const { t } = useT();
   const [token, setToken] = useState<string | null>(localStorage.getItem('aidv_token'));
   const [username, setUsername] = useState<string | null>(localStorage.getItem('aidv_user'));
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    const t = localStorage.getItem('aidv_token');
+    if (t) { try { const p = JSON.parse(atob(t.split('.')[1])); return !!p.is_admin; } catch { return false; } }
+    return false;
+  });
   const [currentView, setCurrentView] = useState<ViewId>('dashboard');
   const [bgImage, setBgImage] = useState<string | null>(localStorage.getItem('aidv_bg'));
   const [bgFit, setBgFit] = useState<string>(localStorage.getItem('aidv_bg_fit') || 'cover');
@@ -39,6 +45,7 @@ export default function App() {
     localStorage.setItem('aidv_token', t);
     localStorage.setItem('aidv_user', u);
     setToken(t); setUsername(u);
+    try { const p = JSON.parse(atob(t.split('.')[1])); setIsAdmin(!!p.is_admin); } catch {}
   };
 
   const handleLogout = () => {
@@ -88,6 +95,7 @@ export default function App() {
           <NavItem icon="school" label={t('nav.practice')} isActive={currentView === 'practice'} onClick={() => setCurrentView('practice')} />
           <NavItem icon="psychology" label={t('nav.ai')} isActive={['ai-engine', 'sql-diff'].includes(currentView)} onClick={() => setCurrentView('ai-engine')} activeIconClass="icon-fill" />
           <NavItem icon="dashboard" label={t('nav.scenarios')} isActive={['scenarios', 'scenario-designer', 'scenario-data'].includes(currentView)} onClick={() => setCurrentView('scenarios')} />
+          {isAdmin && <NavItem icon="admin_panel_settings" label={t('nav.admin')} isActive={currentView === 'admin'} onClick={() => setCurrentView('admin')} />}
         </div>
 
         <div className="mt-auto px-2 pt-4 border-t border-outline-variant/20">
@@ -116,6 +124,7 @@ export default function App() {
               <TopTab label={t('nav.practice')} isActive={currentView === 'practice'} onClick={() => setCurrentView('practice')} />
               <TopTab label={t('nav.ai')} isActive={['ai-engine', 'sql-diff'].includes(currentView)} onClick={() => setCurrentView('ai-engine')} />
               <TopTab label={t('nav.scenarios')} isActive={['scenarios', 'scenario-designer', 'scenario-data'].includes(currentView)} onClick={() => setCurrentView('scenarios')} />
+              {isAdmin && <TopTab label={t('nav.admin')} isActive={currentView === 'admin'} onClick={() => setCurrentView('admin')} />}
             </nav>
           </div>
           <div className="flex items-center gap-4">
@@ -228,6 +237,7 @@ export default function App() {
               onBack={() => setCurrentView('scenarios')}
               onEditStructure={handleEditStructure}
             />)}
+          {currentView === 'admin' && <AdminView token={token!} currentUsername={username!} />}
         </main>
       </div>
     </div>

@@ -7,6 +7,7 @@ export default function LoginView({ onLogin }: { onLogin: (token: string, userna
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [asAdmin, setAsAdmin] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,6 +19,7 @@ export default function LoginView({ onLogin }: { onLogin: (token: string, userna
     const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
     const body: any = { username: username.trim(), password };
     if (isRegister) body.email = email.trim();
+    if (!isRegister) body.as_admin = asAdmin;
 
     try {
       const res = await fetch(endpoint, {
@@ -63,6 +65,18 @@ export default function LoginView({ onLogin }: { onLogin: (token: string, userna
             onKeyDown={e => e.key === 'Enter' && handleSubmit()}
             className="w-full bg-black/30 border border-outline-variant/30 rounded-lg px-4 py-2.5 font-code-sm text-on-surface focus:outline-none focus:border-primary transition-colors" />
 
+          {!isRegister && (
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <div className={`relative w-10 h-5 rounded-full transition-colors ${asAdmin ? 'bg-primary' : 'bg-surface-variant/50 border border-outline-variant/30'}`}
+                onClick={() => setAsAdmin(!asAdmin)}>
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${asAdmin ? 'left-5' : 'left-0.5'}`} />
+              </div>
+              <span className={`font-code-sm text-[12px] ${asAdmin ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>
+                管理员登录
+              </span>
+            </label>
+          )}
+
           {error && <div className="text-error text-[11px] font-code-sm">{error}</div>}
 
           <button onClick={handleSubmit} disabled={loading}
@@ -72,7 +86,7 @@ export default function LoginView({ onLogin }: { onLogin: (token: string, userna
         </div>
 
         <div className="mt-4 text-center">
-          <button onClick={() => { setIsRegister(!isRegister); setError(''); }}
+          <button onClick={() => { setIsRegister(!isRegister); setAsAdmin(false); setError(''); }}
             className="text-primary text-[11px] font-code-sm hover:underline">
             {isRegister ? t('login.hasAccount') : t('login.noAccount')}
           </button>

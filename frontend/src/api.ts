@@ -52,6 +52,9 @@ export interface ExplainResult {
 export interface ColumnInfo {
   name: string;
   type: string;
+  nullable?: boolean;
+  default?: string | null;
+  key?: string;
 }
 
 export interface TableInfo {
@@ -406,6 +409,32 @@ export function executeImport(creates: string[], inserts: string[]): Promise<Imp
   return request('/import/execute', {
     method: 'POST',
     body: JSON.stringify({ creates, inserts }),
+  });
+}
+
+// ── Admin ────────────────────────────────────────────────────────────────────
+
+export interface AdminUser {
+  id: number;
+  username: string;
+  email: string;
+  is_admin: number;
+  created_at: string;
+}
+
+export function fetchAdminUsers(): Promise<{ status: string; users: AdminUser[]; message?: string }> {
+  return request('/admin/users', { headers: authHeader() });
+}
+
+export function deleteAdminUser(userId: number): Promise<{ status: string; message?: string }> {
+  return request('/admin/users/' + userId, { method: 'DELETE', headers: authHeader() });
+}
+
+export function toggleAdminUser(userId: number, isAdmin: boolean): Promise<{ status: string; message?: string }> {
+  return request('/admin/users/' + userId + '/admin', {
+    method: 'PUT',
+    headers: authHeader(),
+    body: JSON.stringify({ is_admin: isAdmin }),
   });
 }
 

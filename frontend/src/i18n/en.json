@@ -7,6 +7,7 @@
   "nav.practice": "Practice",
   "nav.ai": "AI",
   "nav.scenarios": "Scenarios",
+  "nav.admin": "Admin",
   "nav.logout": "Logout",
 
   "login.title": "AIDV",
@@ -198,5 +199,23 @@
   "designer.saveTable": "Save Table",
   "designer.saveChanges": "Save Changes",
   "designer.tableName": "Table Name",
-  "designer.displayName": "Display Name"
+  "designer.displayName": "Display Name",
+
+  "admin.title": "User Management",
+  "admin.id": "ID",
+  "admin.username": "Username",
+  "admin.email": "Email",
+  "admin.role": "Role",
+  "admin.admin": "Admin",
+  "admin.user": "User",
+  "admin.createdAt": "Created",
+  "admin.actions": "Actions",
+  "admin.promote": "Promote to Admin",
+  "admin.demote": "Demote to User",
+  "admin.confirmDelete": "Delete this user? All associated data will be permanently removed.",
+  "admin.confirmDemote": "Remove admin privileges from this user?",
+  "admin.cannotSelf": "Cannot modify your own account.",
+  "admin.userCount": "users",
+  "admin.noUsers": "No users found.",
+  "admin.deleteFailed": "Delete failed"
 }

@@ -57,13 +57,17 @@ export default function ScenarioDesignerView({ scenarioId, scenarioName, onDone,
         if (detail?.tables) {
           const tbl = detail.tables.find(t => t.id === editTable.tableId);
           if (tbl && tbl.columns) {
-            const colDefs = tbl.columns.map((c: { name: string; type: string }) => ({
-              name: c.name,
-              type: (c.type || 'CHAR(100)').toUpperCase().replace(/^STRING$/, 'CHAR(100)'),
-              pk: false,
-              not_null: false,
-              auto_increment: false,
-            }));
+            const colDefs = tbl.columns.map((c: any) => {
+              const isPk = c.key === 'PRI';
+              const isNumeric = /^(INT|FLOAT)/i.test(c.type || '');
+              return {
+                name: c.name,
+                type: (c.type || 'CHAR(100)').toUpperCase().replace(/^STRING$/, 'CHAR(100)'),
+                pk: isPk,
+                not_null: !isPk && c.nullable === false,
+                auto_increment: isPk && isNumeric,
+              };
+            });
             setDesignedTables([{
               name: editTable.tableName,
               display: editTable.displayName,
@@ -71,7 +75,9 @@ export default function ScenarioDesignerView({ scenarioId, scenarioName, onDone,
             }]);
           }
         }
-      } catch {}
+      } catch {
+        console.error('加载表结构失败，请检查后端连接');
+      }
     })();
   }, [editTable?.tableId]);
 
@@ -133,7 +139,12 @@ export default function ScenarioDesignerView({ scenarioId, scenarioName, onDone,
       if (res.errors?.length) {
         setMessages(prev => [...prev, { role: 'ai', content: `⚠️ 部分表创建失败: ${res.errors.map(e => e.error).join(', ')}` }]);
       }
-    } catch {}
+      if (!res.created?.length && !res.errors?.length) {
+        setMessages(prev => [...prev, { role: 'ai', content: '⚠️ 表未创建，可能已存在同名表' }]);
+      }
+    } catch {
+      setMessages(prev => [...prev, { role: 'ai', content: '❌ 网络错误，建表失败。请确认后端服务是否在运行（http://localhost:8000）' }]);
+    }
     setConfirming(false);
   };
 
@@ -156,7 +167,12 @@ export default function ScenarioDesignerView({ scenarioId, scenarioName, onDone,
       if (res.errors?.length) {
         setMessages(prev => [...prev, { role: 'ai', content: `⚠️ ${res.errors.map(e => e.error).join('; ')}` }]);
       }
-    } catch {}
+      if (!res.created?.length && !res.errors?.length) {
+        setMessages(prev => [...prev, { role: 'ai', content: '⚠️ 未创建任何表。可能原因：同名表已存在、后端服务异常、或 RMDB 未启动' }]);
+      }
+    } catch {
+      setMessages(prev => [...prev, { role: 'ai', content: '❌ 网络错误，建表失败。请确认后端服务是否在运行（http://localhost:8000）' }]);
+    }
     setConfirming(false);
   };
 
@@ -174,17 +190,27 @@ export default function ScenarioDesignerView({ scenarioId, scenarioName, onDone,
   // ── Manual designer → create all ──
 
   const handleCreateAll = async (tables: TableDef[]) => {
+    if (!tables.length) {
+      alert('⚠️ 请先设计至少一张表');
+      return;
+    }
     setCreatingAll(true);
     try {
       const sqls = tablesToSQL(tables);
       const res = await confirmAIDesign(scenarioId, sqls);
       if (res.created?.length) {
         alert(`🎉 成功创建 ${res.created.length} 张表！`);
+        onDone();
       }
       if (res.errors?.length) {
         alert(`⚠️ ${res.errors.map(e => e.error).join('; ')}`);
       }
-    } catch {}
+      if (!res.created?.length && !res.errors?.length) {
+        alert('⚠️ 未创建任何表。可能原因：同名表已存在、后端服务异常、或 RMDB 未启动');
+      }
+    } catch {
+      alert('❌ 建表失败：网络错误或后端不可用。请确认：\n1. 已执行 ./start.sh 启动所有服务\n2. 后端运行在 http://localhost:8000\n3. RMDB 运行正常');
+    }
     setCreatingAll(false);
   };
 
@@ -212,7 +238,7 @@ export default function ScenarioDesignerView({ scenarioId, scenarioName, onDone,
         alert(`⚠️ ${res.message || '修改失败'}`);
       }
     } catch {
-      alert('⚠️ 网络错误，请重试');
+      alert('❌ 修改表结构失败：网络错误或后端不可用。请确认服务是否在运行');
     }
     setCreatingAll(false);
   };

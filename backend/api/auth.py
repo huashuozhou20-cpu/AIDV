@@ -18,6 +18,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    as_admin: bool = False
 
 
 def _get_current_user(authorization: str = Header("")) -> dict | None:
@@ -41,6 +42,8 @@ def api_login(req: LoginRequest):
     user = authenticate(req.username.strip(), req.password)
     if not user:
         return {"status": "error", "message": "用户名或密码错误"}
+    if req.as_admin and not user.is_admin:
+        return {"status": "error", "message": "该用户不是管理员，请以普通用户身份登录"}
     token = create_token(user)
     return {"status": "success", "token": token, "user": {"id": user.id, "username": user.username, "email": user.email}}
 

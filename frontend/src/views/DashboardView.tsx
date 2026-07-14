@@ -7,6 +7,16 @@ import type { QueryResult, SchemaTree, TableInfo, HistoryEntry, ParsedSQL, Impor
 import ChatPanel from '../components/ChatPanel';
 import { useT } from '../i18n';
 
+// ── Browser-style editor tabs ───────────────────────────────────────────
+interface EditorTab {
+  id: string;
+  title: string;
+  type: 'editor' | 'table' | 'query';
+  sql: string;
+  result?: QueryResult | null;
+  closable: boolean;
+}
+
 export default function DashboardView() {
   const { t } = useT();
   const [leftPaneWidth, setLeftPaneWidth] = useState(280);
@@ -18,20 +28,51 @@ export default function DashboardView() {
   const [selectedNode, setSelectedNode] = useState<string>('');
   const [workspace, setWorkspace] = useState<WorkspaceTree | null>(null);
   const [schemaTree, setSchemaTree] = useState<SchemaTree | null>(null);
-  const [editingNode, setEditingNode] = useState<string | null>(null); // "folder:3" or "table:5"
+  const [editingNode, setEditingNode] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [dragOverFolder, setDragOverFolder] = useState<number | null>(null);
-  const [activeFolder, setActiveFolder] = useState<{ id: number; name: string } | null>(null); // folder context for SQL isolation
+  const [activeFolder, setActiveFolder] = useState<{ id: number; name: string } | null>(null);
   const [editorHeight, setEditorHeight] = useState(() => {
     const saved = localStorage.getItem('dashboard_editor_h');
     return saved ? Number(saved) : 280;
   });
 
-  const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor');
+  // ── Dynamic tabs ──
+  const EDITOR_TAB_ID = 'editor';
+  const [tabs, setTabs] = useState<EditorTab[]>([
+    { id: EDITOR_TAB_ID, title: 'Editor', type: 'editor', sql: 'SELECT * FROM emp LIMIT 100;', closable: false }
+  ]);
+  const [activeTabId, setActiveTabId] = useState(EDITOR_TAB_ID);
+  const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
+  const queryText = activeTab.sql;
+  const queryResult = activeTab.result ?? null;
+
+  const setQueryText = (sql: string) => setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, sql } : t));
+  const setQueryResult = (r: QueryResult | null) => setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, result: r } : t));
+
+  const openTableTab = (tableName: string) => {
+    const tabId = `table:${tableName}`;
+    if (tabs.find(t => t.id === tabId)) { setActiveTabId(tabId); return; }
+    const newTab: EditorTab = { id: tabId, title: tableName, type: 'table', sql: `SELECT * FROM ${tableName} LIMIT 100;`, closable: true };
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(tabId);
+  };
+  const closeTab = (id: string) => {
+    const tab = tabs.find(t => t.id === id);
+    if (!tab?.closable) return;
+    const idx = tabs.findIndex(t => t.id === id);
+    const next = tabs.filter(t => t.id !== id);
+    setTabs(next);
+    if (activeTabId === id) setActiveTabId(next[Math.min(idx, next.length - 1)]?.id || EDITOR_TAB_ID);
+  };
+  const newQueryTab = () => {
+    const id = `query:${Date.now()}`;
+    setTabs(prev => [...prev, { id, title: `Query ${prev.length}`, type: 'query', sql: '', closable: true }]);
+    setActiveTabId(id);
+  };
+
   const [isQueryRunning, setIsQueryRunning] = useState(false);
-  const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
-  const [queryText, setQueryText] = useState('SELECT * FROM emp LIMIT 100;');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [queryHistory, setQueryHistory] = useState<HistoryEntry[]>([]);
   const [filterText, setFilterText] = useState('');
@@ -98,9 +139,11 @@ export default function DashboardView() {
 
   const handleTableClick = async (tableName: string, e: MouseEvent) => {
     e.stopPropagation(); setSelectedNode(tableName);
+    openTableTab(tableName);
+    // Auto-run the SELECT query
     const sql = `SELECT * FROM ${tableName} LIMIT 100;`;
-    setQueryText(sql); setActiveTab('editor');
-    setIsQueryRunning(true); setQueryError(null); setQueryResult(null);
+    setIsQueryRunning(true); setQueryError(null);
+    setQueryText(sql);
     try {
       const result = await executeQuery(sql);
       setQueryResult(result);
@@ -122,7 +165,7 @@ export default function DashboardView() {
     cancelEdit: () => setEditingNode(null),
     setDragOverFolder: (id: number | null) => setDragOverFolder(id),
     selectTable: (tableName: string, tableId: number, e: MouseEvent) => handleTableClick(tableName, e),
-    showSchema: (tableName: string) => { setQueryText(`DESC ${tableName};`); setActiveTab('editor'); },
+    showSchema: (tableName: string) => { setQueryText(`DESC ${tableName};`); },
     async renameFolder(id: number) {
       if (editValue.trim()) { await renameWorkspaceFolder(id, editValue.trim()); refreshWorkspace(); }
       setEditingNode(null);
@@ -151,8 +194,6 @@ export default function DashboardView() {
   const loadHistory = useCallback(async () => {
     try { setQueryHistory(await fetchQueryHistory(50)); } catch {}
   }, []);
-
-  const handleTabChange = (tab: 'editor' | 'history') => { setActiveTab(tab); if (tab === 'history') loadHistory(); };
 
   const filteredData = queryResult?.data.filter(row =>
     !filterText || row.some(cell => cell.toLowerCase().includes(filterText.toLowerCase()))
@@ -281,22 +322,31 @@ export default function DashboardView() {
             {/* Editor */}
             <div className="glass-panel border border-white/5 rounded-lg flex flex-col overflow-hidden" style={{ height: `${editorHeight}px`, flexShrink: 0 }}>
               <div className="bg-black/20 px-0 flex justify-between items-center shrink-0">
-                <div className="flex h-9 pt-1">
-                  <div className={`px-4 flex items-center gap-2 rounded-t-lg mx-1 cursor-pointer transition-colors ${activeTab === 'editor' ? 'bg-black/40 border-t border-primary' : 'hover:bg-white/5'}`}
-                    onClick={() => handleTabChange('editor')}>
-                    <span className={`material-symbols-outlined text-[16px] ${activeTab === 'editor' ? 'text-primary' : 'text-outline'}`}>description</span>
-                    <span className={`font-code-sm text-code-sm ${activeTab === 'editor' ? 'text-on-surface' : 'text-outline'}`}>{t('dashboard.editor')}</span>
-                  </div>
-                  <div className={`px-4 flex items-center gap-2 rounded-t-lg mx-1 cursor-pointer transition-colors ${activeTab === 'history' ? 'bg-black/40 border-t border-primary' : 'hover:bg-white/5'}`}
-                    onClick={() => handleTabChange('history')}>
-                    <span className={`material-symbols-outlined text-[16px] ${activeTab === 'history' ? 'text-primary' : 'text-outline'}`}>history</span>
-                    <span className={`font-code-sm text-code-sm ${activeTab === 'history' ? 'text-on-surface' : 'text-outline'}`}>{t('dashboard.history')}</span>
-                  </div>
-                  <div className="px-3 flex items-center justify-center hover:bg-white/10 rounded-md my-1 cursor-pointer text-outline transition-colors"
-                    onClick={() => { setQueryText(''); setActiveTab('editor'); }} title={t('dashboard.newQuery')}>
-                    <span className="material-symbols-outlined text-[18px]">add</span></div>
+                {/* ── Dynamic tab bar ── */}
+                <div className="flex h-9 pt-1 overflow-x-auto flex-1 min-w-0 scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
+                  {tabs.map(tab => (
+                    <div key={tab.id}
+                      className={`flex items-center gap-1.5 rounded-t-lg mx-0.5 px-3 cursor-pointer transition-colors whitespace-nowrap select-none ${
+                        activeTabId === tab.id ? 'bg-black/40 border-t border-primary' : 'hover:bg-white/5 text-outline'
+                      }`}
+                      onClick={() => setActiveTabId(tab.id)}>
+                      <span className={`material-symbols-outlined text-[14px] ${activeTabId === tab.id ? 'text-primary' : 'text-outline'}`}>
+                        {tab.type === 'table' ? 'table_view' : 'description'}
+                      </span>
+                      <span className={`font-code-sm text-[11px] ${activeTabId === tab.id ? 'text-on-surface' : 'text-outline'}`}>
+                        {tab.title.length > 18 ? tab.title.slice(0, 16) + '..' : tab.title}
+                      </span>
+                      {tab.closable && (
+                        <span className="material-symbols-outlined text-[12px] hover:text-error hover:bg-white/10 rounded-sm p-0.5 -mr-1"
+                          onClick={e => { e.stopPropagation(); closeTab(tab.id); }}>close</span>
+                      )}
+                    </div>
+                  ))}
+                  <div className="px-2 flex items-center justify-center hover:bg-white/10 rounded-md my-1 cursor-pointer text-outline transition-colors shrink-0"
+                    onClick={newQueryTab} title={t('dashboard.newQuery')}>
+                    <span className="material-symbols-outlined text-[16px]">add</span></div>
                 </div>
-                <div className="flex items-center gap-1 pr-2">
+                <div className="flex items-center gap-1 pr-2 shrink-0">
                   <button className="p-1 rounded hover:bg-white/10 text-on-surface-variant hover:text-tertiary transition-all" title={t('dashboard.aiExplain')}
                     onClick={async () => {
                       if (!queryText.trim()) return;
@@ -305,7 +355,6 @@ export default function DashboardView() {
                         const res = await fetch('/api/practice/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: queryText }) });
                         const d = await res.json();
                         setQueryError(null); setQueryResult({ status: 'success', columns: [t('dashboard.aiExplain')], data: d.explanation?.split('\n').filter((l: string) => l.trim()).map((l: string) => [l]) ?? [], execution_time_ms: 0 });
-                        setActiveTab('editor');
                       } catch { showToast(t('analyzer.aiFailed')); }
                     }}>
                     <span className="material-symbols-outlined text-[16px]">lightbulb</span></button>
@@ -323,25 +372,9 @@ export default function DashboardView() {
                   {queryText.split('\n').map((_, i) => <span key={i} className="leading-[1.625rem]">{i + 1}</span>)}</div>
                 {/* Editor body */}
                 <div className="flex-1 flex flex-col min-h-0 min-w-0">
-                  {activeTab === 'editor' ? (
-                    <textarea className="flex-1 w-full bg-transparent text-[#b5cea8] font-code-sm border-none outline-none resize-none px-2 pt-3 pb-2 leading-[1.625rem]"
-                      value={queryText} onChange={e => setQueryText(e.target.value)} spellCheck={false}
-                      style={{ overflowY: 'auto' }} />
-                  ) : (
-                    <div className="flex-1 text-on-surface-variant/80 font-code-sm text-sm px-2 pt-3 overflow-y-auto">
-                      {queryHistory.length > 0 ? queryHistory.map((entry, i) => (
-                        <div key={i} className="mb-1.5 hover:bg-white/5 rounded px-1 py-0.5 cursor-pointer transition-colors"
-                          onClick={() => { setQueryText(entry.sql + (entry.sql.endsWith(';') ? '' : ';')); setActiveTab('editor'); }}>
-                          <div className="flex items-center gap-2">
-                            <span className="text-outline text-[10px] shrink-0">{entry.time.slice(11, 19)}</span>
-                            <span className={`text-[10px] font-bold shrink-0 ${entry.status === 'success' ? 'text-secondary' : 'text-error'}`}>
-                              {entry.status === 'success' ? `${entry.elapsed_ms}ms` : entry.status}</span>
-                          </div>
-                          <div className="text-on-surface-variant text-[12px] truncate">{entry.sql.length > 80 ? entry.sql.slice(0, 80) + '...' : entry.sql}</div>
-                        </div>
-                      )) : <div className="text-outline italic">{t('dashboard.noHistory')}</div>}
-                    </div>
-                  )}
+                  <textarea className="flex-1 w-full bg-transparent text-[#b5cea8] font-code-sm border-none outline-none resize-none px-2 pt-3 pb-2 leading-[1.625rem]"
+                    value={queryText} onChange={e => setQueryText(e.target.value)} spellCheck={false}
+                    style={{ overflowY: 'auto' }} />
                 </div>
               </div>
             </div>
