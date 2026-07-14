@@ -40,47 +40,70 @@ def api_chat(req: ChatRequest):
         return {"status": "error", "message": "未配置 LLM_API_KEY 环境变量", "columns": [], "data": [], "execution_time_ms": 0}
 
     client = OpenAI(base_url=config.LLM_BASE_URL, api_key=config.LLM_API_KEY)
-    try:
-        schema = build_system_prompt(force_refresh=True)
-        full_prompt = CONVERSATION_PROMPT + "\n\n" + schema
-        resp = client.chat.completions.create(
-            model=config.LLM_MODEL,
-            messages=[
-                {"role": "system", "content": full_prompt},
-                {"role": "user", "content": message},
-            ],
-            temperature=0.3,
-        )
-        content = resp.choices[0].message.content.strip()
-    except Exception as e:
-        return {"status": "error", "message": f"AI 调用失败: {str(e)}", "columns": [], "data": [], "execution_time_ms": 0}
+    schema = build_system_prompt(force_refresh=True)
+    full_prompt = CONVERSATION_PROMPT + "\n\n" + schema
 
-    # Parse response: split into explanation and SQL
-    explanation = ""
-    sql = ""
-    if "---SQL---" in content:
-        parts = content.split("---SQL---", 1)
-        explanation = parts[0].strip()
-        sql = parts[1].strip()
-        sql = re.sub(r"^```(?:sql)?\s*|\s*```$", "", sql).strip()
-    else:
-        # No SQL marker — pure conversational response
-        explanation = content
+    messages = [
+        {"role": "system", "content": full_prompt},
+        {"role": "user", "content": message},
+    ]
 
-    if not sql:
-        # No SQL generated — just return the explanation
-        return {
-            "status": "success",
-            "columns": [],
-            "data": [],
-            "execution_time_ms": 0,
-            "explanation": explanation,
-        }
+    # --- Generate + retry loop (up to 3 attempts) ---
+    MAX_RETRIES = 3
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = client.chat.completions.create(
+                model=config.LLM_MODEL,
+                messages=messages,
+                temperature=0.3,
+            )
+            content = resp.choices[0].message.content.strip()
+        except Exception as e:
+            return {"status": "error", "message": f"AI 调用失败: {str(e)}", "columns": [], "data": [], "execution_time_ms": 0}
 
-    if sql.upper().startswith("ERROR:"):
-        return {"status": "error", "message": sql, "columns": [], "data": [], "execution_time_ms": 0}
+        # Parse response
+        explanation = ""
+        sql = ""
+        if "---SQL---" in content:
+            parts = content.split("---SQL---", 1)
+            explanation = parts[0].strip()
+            sql = parts[1].strip()
+            sql = re.sub(r"^```(?:sql)?\s*|\s*```$", "", sql).strip()
+        else:
+            explanation = content
 
-    result = execute_sql(sql)
+        if not sql:
+            return {
+                "status": "success",
+                "columns": [], "data": [],
+                "execution_time_ms": 0,
+                "explanation": explanation,
+            }
+
+        if sql.upper().startswith("ERROR:"):
+            return {"status": "error", "message": sql, "columns": [], "data": [], "execution_time_ms": 0}
+
+        result = execute_sql(sql)
+
+        if result["status"] == "success":
+            result["generated_sql"] = sql
+            result["explanation"] = explanation
+            return result
+
+        # SQL failed — feed error back to LLM for retry
+        if attempt < MAX_RETRIES - 1:
+            err_msg = result.get("message", "Unknown error")
+            retry_hint = (
+                f"\n\n⚠️ 上面这条 SQL 执行失败了，错误信息：{err_msg}\n"
+                f"注意：这个数据库不支持 COUNT(DISTINCT ...)、子查询。"
+                f"如果需要去重计数，请分两步：先用 SELECT DISTINCT 查出去重结果，"
+                f"然后回答\"查询到 N 条不重复记录\"。"
+                f"请重新生成能正确执行的 SQL。"
+            )
+            messages.append({"role": "assistant", "content": content})
+            messages.append({"role": "user", "content": retry_hint})
+
+    # All retries exhausted
     result["generated_sql"] = sql
-    result["explanation"] = explanation
+    result["explanation"] = explanation + f"\n(已尝试 {MAX_RETRIES} 次，SQL 仍执行失败)"
     return result
