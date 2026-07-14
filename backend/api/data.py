@@ -102,46 +102,39 @@ def api_get_rows(table_name: str, page: int = 1, size: int = 50,
     pk = _get_pk_column(table_name)
     page = max(1, page)
     size = min(200, max(1, size))
-    offset = (page - 1) * size
 
-    # Build query
-    where_clause = ""
-    if search:
-        str_cols = _get_string_columns(table_name)
-        if str_cols:
-            conditions = " OR ".join(f"{c} LIKE '%{search.replace(chr(39), chr(39)+chr(39))}%'" for c in str_cols)
-            where_clause = f"WHERE ({conditions})"
+    # RMDB has a bug with OR in WHERE clauses — multiple OR conditions cause
+    # the WHERE to be ignored entirely.  Work around it by fetching all rows and
+    # filtering / sorting / paginating in Python.
+    str_cols = _get_string_columns(table_name) if search else []
+    search_lower = search.lower().replace("'", "") if search else ""
 
-    order_clause = ""
-    if sort:
-        safe_sort = ''.join(c for c in sort if c.isalnum() or c == '_')
-        safe_order = "DESC" if order.upper() == "DESC" else "ASC"
-        order_clause = f"ORDER BY {safe_sort} {safe_order}"
-    else:
-        order_clause = f"ORDER BY {pk} DESC"
-
-    # Count total
-    total = 0
-    try:
-        count_sql = f"SELECT COUNT(*) FROM {table_name} {where_clause}"
-        raw = db_query_raw(count_sql)
-        if raw and raw.startswith("{"):
-            j = json.loads(raw)
-            if "result" in j:
-                _, rows = _parse_rmdb_ascii_table(str(j["result"]))
-                if rows and rows[0]:
-                    total = int(rows[0][0])
-    except Exception:
-        pass
-
-    # Fetch rows
-    query_sql = f"SELECT * FROM {table_name} {where_clause} {order_clause} LIMIT {size} OFFSET {offset}"
+    # Fetch all rows (no WHERE — RMDB OR bug workaround)
+    order_col = ''.join(c for c in (sort or pk) if c.isalnum() or c == '_')
+    order_dir = "DESC" if (order.upper() == "DESC" if sort else True) else "ASC"
+    query_sql = f"SELECT * FROM {table_name} ORDER BY {order_col} {order_dir}"
     result = execute_sql(query_sql)
+
+    all_data = result.get("data", [])
+    columns = result.get("columns", [])
+
+    # Filter in Python
+    if search_lower and str_cols:
+        col_indices = [columns.index(c) for c in str_cols if c in columns]
+        filtered = []
+        for row in all_data:
+            if any(search_lower in str(row[i]).lower().replace("'", "") for i in col_indices):
+                filtered.append(row)
+        all_data = filtered
+
+    total = len(all_data)
+    offset = (page - 1) * size
+    paged_data = all_data[offset:offset + size]
 
     return {
         "status": result.get("status", "success"),
-        "columns": result.get("columns", []),
-        "data": result.get("data", []),
+        "columns": columns,
+        "data": paged_data,
         "total": total,
         "page": page,
         "size": size,
