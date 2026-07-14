@@ -49,7 +49,7 @@ def _split_sql_statements(text: str) -> list[str]:
 async def api_parse_sql(file: UploadFile = File(...)):
     """Parse an uploaded .sql file and return structured results for preview."""
     content = await file.read()
-    text = content.decode("utf-8", errors="replace")
+    text = content.decode("utf-8-sig", errors="replace")
     if not text.strip():
         return {"status": "error", "message": "文件为空"}
 

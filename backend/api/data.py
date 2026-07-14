@@ -288,7 +288,7 @@ async def api_import_csv(table_name: str, file: UploadFile = File(...), authoriz
         return {"status": "error", "message": "表不存在或无权访问"}
 
     content = await file.read()
-    text = content.decode("utf-8", errors="replace")
+    text = content.decode("utf-8-sig", errors="replace")
 
     reader = csv.reader(io.StringIO(text))
     rows = list(reader)
